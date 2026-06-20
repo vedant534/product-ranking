@@ -1,0 +1,178 @@
+{
+  "splits": {
+    "test": {
+      "GRU4Rec": {
+        "average_latency_ms": 1.697535634564704,
+        "catalog_size": 112714,
+        "latency_mode": "batched_throughput",
+        "metrics": {
+          "10": {
+            "coverage": 0.07600652980108949,
+            "diversity": 0.9826758442856868,
+            "hitrate": 0.04479395426947423,
+            "intra_list_similarity": 0.017324155714313214,
+            "mrr": 0.023417893043910263,
+            "ndcg": 0.028457461770118733,
+            "recall": 0.04479395426947423,
+            "unique_recommended_items": 8567
+          },
+          "20": {
+            "coverage": 0.10083929236829497,
+            "diversity": 0.9884424736929004,
+            "hitrate": 0.05769065150927959,
+            "intra_list_similarity": 0.011557526307099603,
+            "mrr": 0.024317864757786203,
+            "ndcg": 0.03172425758506472,
+            "recall": 0.05769065150927959,
+            "unique_recommended_items": 11366
+          },
+          "5": {
+            "coverage": 0.0575083840516706,
+            "diversity": 0.9751466492683641,
+            "hitrate": 0.03417947724238901,
+            "intra_list_similarity": 0.024853350731635828,
+            "mrr": 0.022008892046677803,
+            "ndcg": 0.025032468808206837,
+            "recall": 0.03417947724238901,
+            "unique_recommended_items": 6482
+          }
+        },
+        "number_of_examples": 92892
+      },
+      "GRU4Rec + MMR": {
+        "average_latency_ms": 11.291256732797198,
+        "catalog_size": 112714,
+        "latency_mode": "single_query",
+        "metrics": {
+          "10": {
+            "coverage": 0.12022463935269798,
+            "diversity": 0.9885862989177168,
+            "hitrate": 0.0640959393704517,
+            "intra_list_similarity": 0.011413701082283203,
+            "mrr": 0.030948258568236568,
+            "ndcg": 0.03869509296004515,
+            "recall": 0.0640959393704517,
+            "unique_recommended_items": 13551
+          },
+          "20": {
+            "coverage": 0.17133630250013307,
+            "diversity": 0.9910685052724051,
+            "hitrate": 0.08958790853894846,
+            "intra_list_similarity": 0.008931494727594925,
+            "mrr": 0.03269168463079963,
+            "ndcg": 0.04510861526327266,
+            "recall": 0.08958790853894846,
+            "unique_recommended_items": 19312
+          },
+          "5": {
+            "coverage": 0.0823855066806253,
+            "diversity": 0.9863086031900836,
+            "hitrate": 0.04590276880678638,
+            "intra_list_similarity": 0.013691396809916398,
+            "mrr": 0.028530443956422496,
+            "ndcg": 0.03282204692795148,
+            "recall": 0.04590276880678638,
+            "unique_recommended_items": 9286
+          }
+        },
+        "number_of_examples": 92892
+      },
+      "Item-KNN": {
+        "average_latency_ms": 0.7185431670111322,
+        "catalog_size": 112714,
+        "latency_mode": "single_query",
+        "metrics": {
+          "10": {
+            "coverage": 0.5322054048299235,
+            "hitrate": 0.14610515437282004,
+            "mrr": 0.06903687521743906,
+            "ndcg": 0.0872030129687902,
+            "recall": 0.14610515437282004,
+            "unique_recommended_items": 59987
+          },
+          "20": {
+            "coverage": 0.6018684458008765,
+            "hitrate": 0.18933815613831115,
+            "mrr": 0.07201994876594847,
+            "ndcg": 0.0981117458213963,
+            "recall": 0.18933815613831115,
+            "unique_recommended_items": 67839
+          },
+          "5": {
+            "coverage": 0.42317724506272514,
+            "hitrate": 0.10866382465659045,
+            "mrr": 0.06404982847464208,
+            "ndcg": 0.07510511425424994,
+            "recall": 0.10866382465659045,
+            "unique_recommended_items": 47698
+          }
+        },
+        "number_of_examples": 92892
+      },
+      "Markov": {
+        "average_latency_ms": 0.02017030989751257,
+        "catalog_size": 112714,
+        "latency_mode": "single_query",
+        "metrics": {
+          "10": {
+            "coverage": 0.3454051848040173,
+            "hitrate": 0.14671877018473065,
+            "mrr": 0.07846465668613818,
+            "ndcg": 0.09471039600393909,
+            "recall": 0.14671877018473065,
+            "unique_recommended_items": 38932
+          },
+          "20": {
+            "coverage": 0.39081214401050446,
+            "hitrate": 0.1656547388364983,
+            "mrr": 0.07981096322718124,
+            "ndcg": 0.099537927836591,
+            "recall": 0.1656547388364983,
+            "unique_recommended_items": 44050
+          },
+          "5": {
+            "coverage": 0.2800894298844864,
+            "hitrate": 0.11830943461223786,
+            "mrr": 0.07462662733783755,
+            "ndcg": 0.08547673929529166,
+            "recall": 0.11830943461223786,
+            "unique_recommended_items": 31570
+          }
+        },
+        "number_of_examples": 92892
+      },
+      "Popularity": {
+        "average_latency_ms": 0.003577270173970173,
+        "catalog_size": 112714,
+        "latency_mode": "single_query",
+        "metrics": {
+          "10": {
+            "coverage": 0.00010646414819809429,
+            "hitrate": 0.0024544632476424235,
+            "mrr": 0.0005418692401963303,
+            "ndcg": 0.0009840598110071948,
+            "recall": 0.0024544632476424235,
+            "unique_recommended_items": 12
+          },
+          "20": {
+            "coverage": 0.00020405628404634738,
+            "hitrate": 0.008343022004047712,
+            "mrr": 0.0009225495722748322,
+            "ndcg": 0.0024380521941741984,
+            "recall": 0.008343022004047712,
+            "unique_recommended_items": 23
+          },
+          "5": {
+            "coverage": 6.210408644888833e-05,
+            "hitrate": 0.001237996813503854,
+            "mrr": 0.000377140478548565,
+            "ndcg": 0.0005880309044680082,
+            "recall": 0.001237996813503854,
+            "unique_recommended_items": 7
+          }
+        },
+        "number_of_examples": 92892
+      }
+    }
+  }
+}

@@ -122,3 +122,10 @@ def test_precomputed_sources_can_be_merged_to_an_exact_smaller_pool(
 
     assert len(candidates) == 3
     assert all(candidate.item_id != 1 for candidate in candidates)
+    for target_item in range(1, 11):
+        expected = any(candidate.item_id == target_item for candidate in candidates)
+        assert engine.candidate_generator.combined_contains_target(
+            source_scores,
+            target_item,
+            pool_size=3,
+        ) is expected

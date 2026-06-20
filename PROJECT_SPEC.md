@@ -249,7 +249,7 @@ The app must provide:
 - Ranked recommendations containing rank, item ID, score, and available category/property context.
 - Clear fallback messaging for empty sessions, unknown items, or missing metadata.
 - Candidate-source and concise explanation columns.
-- A recorded offline-results panel when `reports/results.json` exists.
+- Recorded validation/test panels when the corresponding split-specific result artifacts exist.
 
 Sample held-out sessions are for demonstration only and must not be embedded into trained artifacts. The app must perform no training and should cache loaded models/data with Streamlit resource/data caching.
 
@@ -273,8 +273,10 @@ python3 -m streamlit run app/streamlit_app.py
 │   └── processed/            # generated sessions and split manifest
 ├── artifacts/                # generated trained models and indexes
 ├── reports/
-│   ├── results.json
-│   └── results.md
+│   ├── results_validation.json
+│   ├── results_validation.md
+│   ├── results_test.json
+│   └── results_test.md
 ├── src/
 │   ├── data/
 │   ├── baselines/

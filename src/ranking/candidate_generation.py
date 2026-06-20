@@ -1,6 +1,7 @@
 """Hybrid candidate generation from fitted classical recommenders."""
 
 from dataclasses import dataclass, field
+from heapq import nsmallest
 from numbers import Integral
 from typing import Optional
 
@@ -48,10 +49,13 @@ class CandidateGenerator:
 
     @staticmethod
     def _top_scores(scores: dict[object, float], limit: int) -> dict[object, float]:
-        ordered = sorted(
-            scores,
-            key=lambda item: (-scores[item], _item_sort_key(item)),
-        )
+        def rank_key(item: object) -> tuple[float, tuple[str, str]]:
+            return -scores[item], _item_sort_key(item)
+
+        if len(scores) <= limit:
+            ordered = sorted(scores, key=rank_key)
+        else:
+            ordered = nsmallest(limit, scores, key=rank_key)
         return {item: scores[item] for item in ordered[:limit]}
 
     def _resolve_pool_size(self, pool_size: Optional[int]) -> int:
@@ -94,7 +98,7 @@ class CandidateGenerator:
         seen = set(prefix_items)
         candidates: dict[object, Candidate] = {}
         for source in ("popularity", "markov", "item_knn"):
-            scores = self._top_scores(source_scores.get(source, {}), limit)
+            scores = dict(list(source_scores.get(source, {}).items())[:limit])
             maximum = max(scores.values(), default=0.0)
             for item_id, score in scores.items():
                 if item_id in seen:
@@ -116,6 +120,55 @@ class CandidateGenerator:
             ),
         )
         return ordered_candidates[:limit]
+
+    def combined_contains_target(
+        self,
+        source_scores: dict[str, dict[object, float]],
+        target_item: object,
+        pool_size: int,
+    ) -> bool:
+        """Check target membership in an exact bounded merge without sorting the full union.
+
+        ``source_scores`` must be the ranked output of :meth:`score_sources`.
+        """
+        limit = self._resolve_pool_size(pool_size)
+        ranked_sources = {
+            source: list(source_scores.get(source, {}).items())[:limit]
+            for source in ("popularity", "markov", "item_knn")
+        }
+        if not any(
+            any(item_id == target_item for item_id, _ in scores)
+            for scores in ranked_sources.values()
+        ):
+            return False
+
+        pool_scores: dict[object, float] = {}
+        for scores in ranked_sources.values():
+            maximum = max((score for _, score in scores), default=0.0)
+            for item_id, score in scores:
+                if maximum > 0:
+                    pool_scores[item_id] = pool_scores.get(item_id, 0.0) + score / maximum
+                else:
+                    pool_scores.setdefault(item_id, 0.0)
+
+        target_score = pool_scores[target_item]
+        target_key = (
+            -target_score,
+            self._popularity_rank.get(target_item, len(self._popularity_rank)),
+            _item_sort_key(target_item),
+        )
+        better_items = 0
+        for item_id, pool_score in pool_scores.items():
+            item_key = (
+                -pool_score,
+                self._popularity_rank.get(item_id, len(self._popularity_rank)),
+                _item_sort_key(item_id),
+            )
+            if item_key < target_key:
+                better_items += 1
+                if better_items >= limit:
+                    return False
+        return True
 
     def generate(self, prefix_items: list[object]) -> list[Candidate]:
         source_scores = self.score_sources(prefix_items)

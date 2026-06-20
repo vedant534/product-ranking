@@ -104,12 +104,11 @@ def evaluate_candidate_recall(
             for source, ranking in source_rankings.items():
                 if target_item in ranking[:cutoff]:
                     hits[source][cutoff_key] += 1
-            combined = generator.combine_source_scores(
-                prefix_items,
+            if generator.combined_contains_target(
                 source_scores,
+                target_item,
                 pool_size=cutoff,
-            )
-            if any(candidate.item_id == target_item for candidate in combined):
+            ):
                 hits["combined"][cutoff_key] += 1
 
         if progress_every and index % progress_every == 0:

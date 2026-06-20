@@ -34,8 +34,8 @@ fixed-subset validation MRR@20 increased from 0.00615 to 0.03072. The saved chec
 ## Evaluation
 
 All models use the shared metric implementation for Recall, HitRate, MRR, NDCG, and coverage at
-K=5, 10, and 20. Validation results are in `reports/results.json` and `reports/results.md`; test
-breakdowns are in `reports/segment_analysis.md`.
+K=5, 10, and 20. Split-specific results are in `reports/results_validation.*` and
+`reports/results_test.*`; test breakdowns are in `reports/segment_analysis.md`.
 
 At validation K=20, Item-KNN has the highest Recall (0.230867), Markov has the highest MRR
 (0.101537), and direct GRU Recall is 0.072664. GRU plus MMR reaches Recall 0.111548 and co-visitation

@@ -1,0 +1,39 @@
+{
+  "cutoffs": [
+    100,
+    500,
+    1000
+  ],
+  "fit_split": "train",
+  "number_of_examples": 92892,
+  "policy": {
+    "combined_pool": "normalized source-score merge truncated to exactly K",
+    "seen_items_excluded": true,
+    "source_fallbacks": false,
+    "unknown_targets_count_as_misses": true
+  },
+  "recall": {
+    "combined": {
+      "100": 0.2457692804547216,
+      "1000": 0.3566292038065711,
+      "500": 0.32451664298324934
+    },
+    "item_knn": {
+      "100": 0.28367351332730484,
+      "1000": 0.354314688024803,
+      "500": 0.34450760022391597
+    },
+    "markov": {
+      "100": 0.17371786590879731,
+      "1000": 0.17398699565086337,
+      "500": 0.17398699565086337
+    },
+    "popularity": {
+      "100": 0.02427550273435818,
+      "1000": 0.10248460577875382,
+      "500": 0.06678723679111226
+    }
+  },
+  "split": "test",
+  "unknown_targets": 23515
+}
