@@ -1,0 +1,24 @@
+dataset:
+  name: retailrocket
+  timestamp_unit: ms
+  timezone: UTC
+  files:
+    events: data/raw/retailrocket/events.csv
+    item_properties:
+      - data/raw/retailrocket/item_properties_part1.csv
+      - data/raw/retailrocket/item_properties_part2.csv
+    category_tree: data/raw/retailrocket/category_tree.csv
+  required_event_columns:
+    - timestamp
+    - visitorid
+    - event
+    - itemid
+    - transactionid
+  required_item_property_columns:
+    - timestamp
+    - itemid
+    - property
+    - value
+  required_category_columns:
+    - categoryid
+    - parentid

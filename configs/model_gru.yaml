@@ -1,0 +1,19 @@
+model:
+  name: gru4rec
+  embedding_dim: 32
+  hidden_dim: 32
+  num_layers: 1
+  dropout: 0.1
+
+training:
+  optimizer: adam
+  learning_rate: 0.001
+  batch_size: 512
+  epochs: 5
+  max_sequence_length: 50
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 2
+  sampled_softmax_negatives: 1024
+  validation_max_examples: 20000
+  device: auto
+  seed: 42

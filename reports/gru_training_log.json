@@ -1,0 +1,37 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 7.167956780828643,
+    "validation_recall_at_20": 0.0154,
+    "validation_mrr_at_20": 0.00614780033971017,
+    "validation_ndcg_at_20": 0.008181204215558477
+  },
+  {
+    "epoch": 2,
+    "train_loss": 6.783954201405105,
+    "validation_recall_at_20": 0.03185,
+    "validation_mrr_at_20": 0.012901408169573796,
+    "validation_ndcg_at_20": 0.01708110382538494
+  },
+  {
+    "epoch": 3,
+    "train_loss": 6.3924612246555474,
+    "validation_recall_at_20": 0.04845,
+    "validation_mrr_at_20": 0.019634220827332263,
+    "validation_ndcg_at_20": 0.025995099357993406
+  },
+  {
+    "epoch": 4,
+    "train_loss": 5.995991761649632,
+    "validation_recall_at_20": 0.0622,
+    "validation_mrr_at_20": 0.025427230298725977,
+    "validation_ndcg_at_20": 0.03356235032581893
+  },
+  {
+    "epoch": 5,
+    "train_loss": 5.649376674482056,
+    "validation_recall_at_20": 0.0741,
+    "validation_mrr_at_20": 0.030718648513079604,
+    "validation_ndcg_at_20": 0.040306793038237886
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 7.3084962368011475,
+    "validation_recall_at_20": 0.0,
+    "validation_mrr_at_20": 0.0,
+    "validation_ndcg_at_20": 0.0
+  },
+  {
+    "epoch": 2,
+    "train_loss": 7.289551138877869,
+    "validation_recall_at_20": 0.0,
+    "validation_mrr_at_20": 0.0,
+    "validation_ndcg_at_20": 0.0
+  },
+  {
+    "epoch": 3,
+    "train_loss": 7.260864615440369,
+    "validation_recall_at_20": 0.0,
+    "validation_mrr_at_20": 0.0,
+    "validation_ndcg_at_20": 0.0
+  }
+]
