@@ -10,6 +10,9 @@ from baselines.markov import MarkovRecommender
 from baselines.popularity import PopularityRecommender, _item_sort_key
 
 SOURCE_ORDER = ("markov", "item_knn", "popularity", "neural")
+QUOTA_SOURCE_ORDER = ("item_knn", "markov", "popularity")
+DEFAULT_QUOTA_WEIGHTS = {"item_knn": 700, "markov": 200, "popularity": 100}
+CANDIDATE_MODES = ("combined", "quota_combined")
 
 
 @dataclass
@@ -32,6 +35,8 @@ class CandidateGenerator:
         markov: MarkovRecommender,
         item_knn: ItemKNNRecommender,
         candidate_pool_size: int = 500,
+        candidate_mode: str = "combined",
+        quota_weights: Optional[dict[str, int]] = None,
     ) -> None:
         if (
             isinstance(candidate_pool_size, bool)
@@ -43,6 +48,17 @@ class CandidateGenerator:
         self.markov = markov
         self.item_knn = item_knn
         self.candidate_pool_size = int(candidate_pool_size)
+        if candidate_mode not in CANDIDATE_MODES:
+            raise ValueError(f"candidate_mode must be one of: {', '.join(CANDIDATE_MODES)}")
+        self.candidate_mode = candidate_mode
+        self.quota_weights = dict(quota_weights or DEFAULT_QUOTA_WEIGHTS)
+        if set(self.quota_weights) != set(QUOTA_SOURCE_ORDER):
+            raise ValueError("quota_weights must define item_knn, markov, and popularity")
+        if any(
+            isinstance(weight, bool) or not isinstance(weight, Integral) or weight < 0
+            for weight in self.quota_weights.values()
+        ) or sum(self.quota_weights.values()) <= 0:
+            raise ValueError("quota weights must be non-negative integers with a positive sum")
         self._popularity_rank = {
             item: rank for rank, item in enumerate(self.popularity.ranked_items)
         }
@@ -121,6 +137,90 @@ class CandidateGenerator:
         )
         return ordered_candidates[:limit]
 
+    def resolved_quotas(self, pool_size: Optional[int] = None) -> dict[str, int]:
+        """Scale quota weights to exactly the requested pool size."""
+        limit = self._resolve_pool_size(pool_size)
+        total_weight = sum(self.quota_weights.values())
+        exact = {
+            source: limit * self.quota_weights[source] / total_weight
+            for source in QUOTA_SOURCE_ORDER
+        }
+        quotas = {source: int(exact[source]) for source in QUOTA_SOURCE_ORDER}
+        remaining = limit - sum(quotas.values())
+        remainder_order = sorted(
+            QUOTA_SOURCE_ORDER,
+            key=lambda source: (
+                -(exact[source] - quotas[source]),
+                QUOTA_SOURCE_ORDER.index(source),
+            ),
+        )
+        for source in remainder_order[:remaining]:
+            quotas[source] += 1
+        return quotas
+
+    def quota_combine_source_scores(
+        self,
+        prefix_items: list[object],
+        source_scores: dict[str, dict[object, float]],
+        pool_size: Optional[int] = None,
+    ) -> list[Candidate]:
+        """Build a deduplicated pool with scaled source quotas and priority backfill."""
+        limit = self._resolve_pool_size(pool_size)
+        quotas = self.resolved_quotas(limit)
+        seen = set(prefix_items)
+        rankings = {
+            source: list(source_scores.get(source, {}).items())[:limit]
+            for source in QUOTA_SOURCE_ORDER
+        }
+        selected_ids: list[object] = []
+        selected = set()
+        source_positions = {source: 0 for source in QUOTA_SOURCE_ORDER}
+        carried_shortage = 0
+
+        for source in QUOTA_SOURCE_ORDER:
+            requested = quotas[source] + carried_shortage
+            contributed = 0
+            ranking = rankings[source]
+            while source_positions[source] < len(ranking) and contributed < requested:
+                item_id, _ = ranking[source_positions[source]]
+                source_positions[source] += 1
+                if item_id in seen or item_id in selected:
+                    continue
+                selected.add(item_id)
+                selected_ids.append(item_id)
+                contributed += 1
+            carried_shortage = requested - contributed
+
+        if len(selected_ids) < limit:
+            for source in QUOTA_SOURCE_ORDER:
+                ranking = rankings[source]
+                while source_positions[source] < len(ranking) and len(selected_ids) < limit:
+                    item_id, _ = ranking[source_positions[source]]
+                    source_positions[source] += 1
+                    if item_id in seen or item_id in selected:
+                        continue
+                    selected.add(item_id)
+                    selected_ids.append(item_id)
+                if len(selected_ids) == limit:
+                    break
+
+        maxima = {
+            source: max(source_scores.get(source, {}).values(), default=0.0)
+            for source in QUOTA_SOURCE_ORDER
+        }
+        candidates = []
+        for item_id in selected_ids:
+            candidate = Candidate(item_id=item_id)
+            for source in QUOTA_SOURCE_ORDER:
+                score = source_scores.get(source, {}).get(item_id)
+                if score is None:
+                    continue
+                candidate.source_scores[source] = float(score)
+                if maxima[source] > 0:
+                    candidate.pool_score += float(score) / maxima[source]
+            candidates.append(candidate)
+        return candidates
+
     def combined_contains_target(
         self,
         source_scores: dict[str, dict[object, float]],
@@ -172,4 +272,6 @@ class CandidateGenerator:
 
     def generate(self, prefix_items: list[object]) -> list[Candidate]:
         source_scores = self.score_sources(prefix_items)
+        if self.candidate_mode == "quota_combined":
+            return self.quota_combine_source_scores(prefix_items, source_scores)
         return self.combine_source_scores(prefix_items, source_scores)

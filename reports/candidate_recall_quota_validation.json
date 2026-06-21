@@ -1,0 +1,67 @@
+{
+  "base_quotas": {
+    "item_knn": 700,
+    "markov": 200,
+    "popularity": 100
+  },
+  "candidate_mode": "quota_combined",
+  "candidate_pool_sizes": [
+    100,
+    500,
+    1000
+  ],
+  "cutoffs": [
+    100,
+    500,
+    1000
+  ],
+  "fit_split": "train",
+  "number_of_examples": 88159,
+  "policy": {
+    "backfill_priority": [
+      "item_knn",
+      "markov",
+      "popularity"
+    ],
+    "quota_scaling": "largest_remainder",
+    "seen_items_excluded": true,
+    "unknown_targets_count_as_misses": true
+  },
+  "recall": {
+    "combined": {
+      "100": 0.3037239533116301,
+      "1000": 0.4334441180140428,
+      "500": 0.3962613006045894
+    },
+    "item_knn": {
+      "100": 0.3497090484238705,
+      "1000": 0.43203756848421604,
+      "500": 0.42030876030807973
+    },
+    "quota_combined": {
+      "100": 0.35004934266495763,
+      "1000": 0.45442892954774894,
+      "500": 0.4295987930897583
+    }
+  },
+  "report_status": "validation",
+  "resolved_quotas": {
+    "100": {
+      "item_knn": 70,
+      "markov": 20,
+      "popularity": 10
+    },
+    "1000": {
+      "item_knn": 700,
+      "markov": 200,
+      "popularity": 100
+    },
+    "500": {
+      "item_knn": 350,
+      "markov": 100,
+      "popularity": 50
+    }
+  },
+  "split": "validation",
+  "unknown_targets": 14764
+}

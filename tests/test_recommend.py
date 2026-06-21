@@ -129,3 +129,62 @@ def test_precomputed_sources_can_be_merged_to_an_exact_smaller_pool(
             target_item,
             pool_size=3,
         ) is expected
+
+
+def test_quota_scaling_uses_largest_remainder_and_exact_total(
+    fitted_models: tuple[object, object, object],
+) -> None:
+    engine = _engine(fitted_models)
+    generator = engine.candidate_generator
+
+    assert generator.resolved_quotas(500) == {
+        "item_knn": 350,
+        "markov": 100,
+        "popularity": 50,
+    }
+    assert sum(generator.resolved_quotas(7).values()) == 7
+
+
+def test_quota_combined_deduplicates_and_preserves_all_source_tags(
+    fitted_models: tuple[object, object, object],
+) -> None:
+    engine = _engine(fitted_models)
+    generator = CandidateGenerator(
+        *fitted_models,
+        candidate_pool_size=4,
+        candidate_mode="quota_combined",
+        quota_weights={"item_knn": 2, "markov": 1, "popularity": 1},
+    )
+    source_scores = {
+        "item_knn": {2: 4.0, 3: 3.0, 4: 2.0, 5: 1.0},
+        "markov": {2: 5.0, 6: 4.0},
+        "popularity": {2: 10.0, 7: 9.0, 8: 8.0},
+    }
+
+    candidates = generator.quota_combine_source_scores([1], source_scores)
+
+    assert len(candidates) == 4
+    assert len({candidate.item_id for candidate in candidates}) == 4
+    duplicated = next(candidate for candidate in candidates if candidate.item_id == 2)
+    assert set(duplicated.sources) == {"item_knn", "markov", "popularity"}
+    assert engine.candidate_generator.candidate_mode == "combined"
+
+
+def test_quota_shortage_backfills_from_next_source(
+    fitted_models: tuple[object, object, object],
+) -> None:
+    generator = CandidateGenerator(
+        *fitted_models,
+        candidate_pool_size=5,
+        candidate_mode="quota_combined",
+        quota_weights={"item_knn": 3, "markov": 1, "popularity": 1},
+    )
+    source_scores = {
+        "item_knn": {2: 1.0},
+        "markov": {3: 3.0, 4: 2.0, 5: 1.0},
+        "popularity": {6: 3.0, 7: 2.0, 8: 1.0},
+    }
+
+    candidates = generator.quota_combine_source_scores([1], source_scores)
+
+    assert [candidate.item_id for candidate in candidates] == [2, 3, 4, 5, 6]

@@ -17,8 +17,11 @@ if str(SRC_DIR) not in sys.path:
 
 from evaluation.evaluate import load_catalog_size, load_processed_examples  # noqa: E402
 from evaluation.reporting import (  # noqa: E402
+    load_candidate_gru_summary,
     load_candidate_recall_summary,
     load_evaluation_summary,
+    load_markdown_report,
+    load_quota_candidate_recall_summary,
     summarize_metric_winners,
 )
 from models.gru4rec import GRU4Rec  # noqa: E402
@@ -43,6 +46,18 @@ CANDIDATE_RECALL_ARTIFACTS = {
     split_name: PROJECT_ROOT / "reports" / f"candidate_recall_{split_name}.json"
     for split_name in ("validation", "test")
 }
+CANDIDATE_GRU_RESULT_ARTIFACTS = {
+    split_name: PROJECT_ROOT / "reports" / f"candidate_gru_{split_name}.json"
+    for split_name in ("validation", "test")
+}
+QUOTA_CANDIDATE_RECALL_ARTIFACTS = {
+    split_name: PROJECT_ROOT / "reports" / f"candidate_recall_quota_{split_name}.json"
+    for split_name in ("validation", "test")
+}
+CANDIDATE_GRU_DIAGNOSTICS_ARTIFACT = (
+    PROJECT_ROOT / "reports" / "candidate_gru_diagnostics.md"
+)
+RECORDED_OFFLINE_MMR_ALPHA = 0.8
 MODEL_NAMES = (
     "Popularity",
     "Markov",
@@ -109,6 +124,27 @@ def load_recorded_candidate_recall(
 ) -> Optional[pd.DataFrame]:
     """Load recorded candidate recall without running candidate generation."""
     return load_candidate_recall_summary(path, split_name)
+
+
+@st.cache_data(show_spinner=False)
+def load_candidate_gru_report(path: Path, split_name: str) -> Optional[pd.DataFrame]:
+    """Load saved candidate-aware metrics without loading the experimental model."""
+    return load_candidate_gru_summary(path, split_name)
+
+
+@st.cache_data(show_spinner=False)
+def load_quota_candidate_recall(
+    path: Path,
+    split_name: str,
+) -> Optional[pd.DataFrame]:
+    """Load saved quota-candidate recall without regenerating candidates."""
+    return load_quota_candidate_recall_summary(path, split_name)
+
+
+@st.cache_data(show_spinner=False)
+def load_candidate_gru_diagnostics(path: Path) -> Optional[str]:
+    """Load the saved diagnostics Markdown as report-only content."""
+    return load_markdown_report(path)
 
 
 def _render_interpretation(summary: pd.DataFrame) -> None:
@@ -306,7 +342,9 @@ with st.expander("How to read this demo", expanded=True):
         "4. Diversity uses train-only Item-KNN cosine co-visitation similarity, not category "
         "diversity. Optional categories are display metadata only.\n"
         "5. Lower MMR alpha applies a stronger similarity penalty; higher alpha preserves more "
-        "of the GRU relevance order."
+        "of the GRU relevance order.\n"
+        "6. The top-N and alpha sliders affect only displayed interactive recommendations. "
+        "Recorded metrics and candidate recall are precomputed and do not change with sliders."
     )
 
 try:
@@ -335,7 +373,8 @@ for result_tab, split_name in zip(result_tabs, ("validation", "test")):
                 )
             else:
                 st.caption(
-                    f"Recorded {split_name} metrics at K=20; this app does not recompute them."
+                    f"Recorded {split_name} metrics at K=20; this app does not recompute them. "
+                    f"Recorded MMR used alpha={RECORDED_OFFLINE_MMR_ALPHA:.2f}."
                 )
                 st.dataframe(
                     results_summary,
@@ -350,9 +389,9 @@ for result_tab, split_name in zip(result_tabs, ("validation", "test")):
                 _render_interpretation(results_summary)
 
 st.info(
-    "Classical session baselines currently outperform the simple GRU4Rec model. "
-    "This project is a session-based ranking benchmark and inference demo, not a claim "
-    "that neural ranking wins."
+    "Classical session baselines outperform the initial GRU4Rec. A separate candidate-aware "
+    "GRU experiment substantially improves neural reranking by training against hard "
+    "candidates from the same quota candidate pool."
 )
 
 if any(path.is_file() for path in CANDIDATE_RECALL_ARTIFACTS.values()):
@@ -385,6 +424,112 @@ if any(path.is_file() for path in CANDIDATE_RECALL_ARTIFACTS.values()):
                         },
                     )
 
+st.subheader("Candidate-aware GRU experiment")
+st.caption(
+    "Report-only experiment results loaded from saved artifacts. Candidate-aware GRU is not "
+    "loaded into the live recommendation interface, and this app does not recompute metrics."
+)
+candidate_gru_tabs = st.tabs(("Validation experiment", "Observed test"))
+with candidate_gru_tabs[0]:
+    try:
+        candidate_gru_validation = load_candidate_gru_report(
+            CANDIDATE_GRU_RESULT_ARTIFACTS["validation"],
+            "validation",
+        )
+    except (json.JSONDecodeError, ValueError) as error:
+        st.warning(f"Could not load candidate-aware validation report: {error}")
+    else:
+        if candidate_gru_validation is None:
+            st.warning("Candidate-aware GRU validation report not found.")
+        else:
+            st.dataframe(
+                candidate_gru_validation,
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    metric: st.column_config.NumberColumn(format="%.6f")
+                    for metric in ("Recall@20", "MRR@20", "NDCG@20", "Coverage@20")
+                },
+            )
+            st.info(
+                "The initial GRU4Rec underperformed classical baselines. Candidate-aware "
+                "hard-negative training substantially improved neural reranking on the same "
+                "quota candidate pool, indicating that train–serve mismatch was a major issue."
+            )
+
+with candidate_gru_tabs[1]:
+    try:
+        candidate_gru_test = load_candidate_gru_report(
+            CANDIDATE_GRU_RESULT_ARTIFACTS["test"],
+            "test",
+        )
+    except (json.JSONDecodeError, ValueError) as error:
+        st.warning(f"Could not load candidate-aware observed-test report: {error}")
+    else:
+        if candidate_gru_test is None:
+            st.warning("Candidate-aware GRU observed-test report not found.")
+        else:
+            test_mrr = candidate_gru_test.set_index("model")["MRR@20"]
+            metric_columns = st.columns(2)
+            metric_columns[0].metric(
+                "Candidate-aware GRU observed-test MRR@20",
+                f"{test_mrr['Candidate-aware GRU']:.6f}",
+            )
+            metric_columns[1].metric(
+                "Same-pool current GRU observed-test MRR@20",
+                f"{test_mrr['Current GRU on quota pool']:.6f}",
+            )
+            st.warning(
+                "Observed test was run after the validation gate passed and should be treated "
+                "as confirmatory evidence, not an unbiased final holdout."
+            )
+
+st.markdown("#### Quota candidate recall")
+quota_tabs = st.tabs(("Validation quota recall", "Observed-test quota recall"))
+for quota_tab, split_name in zip(quota_tabs, ("validation", "test")):
+    with quota_tab:
+        try:
+            quota_summary = load_quota_candidate_recall(
+                QUOTA_CANDIDATE_RECALL_ARTIFACTS[split_name],
+                split_name,
+            )
+        except (json.JSONDecodeError, ValueError) as error:
+            st.warning(f"Could not load {split_name} quota candidate recall: {error}")
+        else:
+            if quota_summary is None:
+                st.warning(f"{split_name.title()} quota candidate recall report not found.")
+            else:
+                st.dataframe(
+                    quota_summary,
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        column: st.column_config.NumberColumn(format="%.6f")
+                        for column in ("quota_combined", "old combined", "improvement")
+                    },
+                )
+
+try:
+    candidate_gru_diagnostics = load_candidate_gru_diagnostics(
+        CANDIDATE_GRU_DIAGNOSTICS_ARTIFACT
+    )
+except ValueError as error:
+    st.warning(f"Could not load candidate-aware diagnostics: {error}")
+else:
+    if candidate_gru_diagnostics is None:
+        st.caption("Candidate-aware GRU diagnostics report not found.")
+    else:
+        with st.expander("Candidate-aware GRU diagnostics"):
+            st.markdown(candidate_gru_diagnostics)
+
+st.markdown(
+    "**Limitations**\n\n"
+    "- Candidate-aware GRU improves strongly over current GRU but does not dominate every "
+    "classical baseline.\n"
+    "- Candidate recall still limits all rerankers.\n"
+    "- MMR at alpha 0.8 reduced ranking metrics and should be treated as a diversity tradeoff."
+)
+
 with st.sidebar:
     st.header("Session input")
     input_mode = st.radio("Choose input", ("Real test session", "Manual item IDs"))
@@ -397,6 +542,15 @@ with st.sidebar:
         step=0.05,
         help="Higher values favor GRU relevance; lower values penalize similar items more.",
     )
+    st.caption(
+        "Top-N controls only displayed recommendations. Alpha controls only displayed MMR "
+        "recommendations; neither slider changes recorded offline metrics."
+    )
+    if abs(diversity_alpha - RECORDED_OFFLINE_MMR_ALPHA) > 1e-9:
+        st.warning(
+            f"Interactive MMR uses alpha={diversity_alpha:.2f}, while recorded offline "
+            f"MMR metrics use alpha={RECORDED_OFFLINE_MMR_ALPHA:.2f}."
+        )
 
 prefix: list[int] = []
 if input_mode == "Real test session":

@@ -16,11 +16,13 @@ if __package__ in (None, ""):
 
 CUTOFFS = (100, 500, 1000)
 SOURCES = ("popularity", "markov", "item_knn", "combined")
+QUOTA_REPORT_SOURCES = ("item_knn", "combined", "quota_combined")
 DISPLAY_NAMES = {
     "popularity": "Popularity",
     "markov": "Markov",
     "item_knn": "Item-KNN",
     "combined": "Combined",
+    "quota_combined": "Quota combined",
 }
 
 
@@ -48,6 +50,9 @@ def fit_candidate_generator(
     train_examples: pd.DataFrame,
     similarity: str = "cosine",
     recency_decay: float = 0.8,
+    candidate_pool_size: int = max(CUTOFFS),
+    candidate_mode: str = "combined",
+    quota_weights: Optional[dict[str, int]] = None,
 ):
     """Fit all candidate sources exclusively from the supplied train examples."""
     from baselines.item_knn import ItemKNNRecommender
@@ -67,7 +72,9 @@ def fit_candidate_generator(
         popularity,
         markov,
         item_knn,
-        candidate_pool_size=max(CUTOFFS),
+        candidate_pool_size=candidate_pool_size,
+        candidate_mode=candidate_mode,
+        quota_weights=quota_weights,
     )
 
 
@@ -82,9 +89,10 @@ def evaluate_candidate_recall(
     if not evaluated_cutoffs or any(cutoff <= 0 for cutoff in evaluated_cutoffs):
         raise ValueError("cutoffs must contain positive integers")
     maximum_cutoff = max(evaluated_cutoffs)
+    all_sources = SOURCES + ("quota_combined",)
     hits = {
         source: {str(cutoff): 0 for cutoff in evaluated_cutoffs}
-        for source in SOURCES
+        for source in all_sources
     }
 
     for index, (prefix, target) in enumerate(
@@ -110,6 +118,14 @@ def evaluate_candidate_recall(
                 pool_size=cutoff,
             ):
                 hits["combined"][cutoff_key] += 1
+            if any(target_item in ranking[:cutoff] for ranking in source_rankings.values()):
+                quota_candidates = generator.quota_combine_source_scores(
+                    prefix_items,
+                    source_scores,
+                    pool_size=cutoff,
+                )
+                if any(candidate.item_id == target_item for candidate in quota_candidates):
+                    hits["quota_combined"][cutoff_key] += 1
 
         if progress_every and index % progress_every == 0:
             print(f"Processed {index:,}/{len(examples):,} examples.")
@@ -183,6 +199,75 @@ def save_candidate_recall_report(
     return json_path, markdown_path
 
 
+def _render_quota_markdown(payload: dict[str, object]) -> str:
+    lines = [
+        f"# Quota Candidate Recall: {str(payload['split']).title()}",
+        "",
+        f"Report status: **{payload['report_status']}**  ",
+        f"Examples: **{int(payload['number_of_examples']):,}**  ",
+        f"Unknown targets counted as misses: **{int(payload['unknown_targets']):,}**  ",
+        "Fit split: **train**  ",
+        "Candidate mode: **quota_combined**",
+        "",
+        "Base quota weights are Item-KNN 700, Markov 200, and Popularity 100. Quotas",
+        "are scaled to each cutoff using largest-remainder rounding.",
+        "",
+        "| Candidate source | Recall@100 | Recall@500 | Recall@1000 |",
+        "|---|---:|---:|---:|",
+    ]
+    recall = payload["recall"]
+    for source in QUOTA_REPORT_SOURCES:
+        metrics = recall[source]
+        lines.append(
+            f"| {DISPLAY_NAMES[source]} | {metrics['100']:.6f} | "
+            f"{metrics['500']:.6f} | {metrics['1000']:.6f} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def save_quota_candidate_recall_report(
+    split_name: str,
+    recall: dict[str, object],
+    number_of_examples: int,
+    unknown_targets: int,
+    reports_dir: Path,
+    generator,
+) -> tuple[Path, Path]:
+    """Save the controlled old-versus-quota candidate comparison."""
+    if split_name not in {"validation", "test"}:
+        raise ValueError("split_name must be 'validation' or 'test'")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "split": split_name,
+        "report_status": "validation" if split_name == "validation" else "observed_test",
+        "fit_split": "train",
+        "number_of_examples": int(number_of_examples),
+        "unknown_targets": int(unknown_targets),
+        "cutoffs": list(CUTOFFS),
+        "candidate_mode": "quota_combined",
+        "candidate_pool_sizes": list(CUTOFFS),
+        "base_quotas": dict(generator.quota_weights),
+        "resolved_quotas": {
+            str(cutoff): generator.resolved_quotas(cutoff) for cutoff in CUTOFFS
+        },
+        "policy": {
+            "quota_scaling": "largest_remainder",
+            "backfill_priority": ["item_knn", "markov", "popularity"],
+            "seen_items_excluded": True,
+            "unknown_targets_count_as_misses": True,
+        },
+        "recall": {source: recall[source] for source in QUOTA_REPORT_SOURCES},
+    }
+    json_path = reports_dir / f"candidate_recall_quota_{split_name}.json"
+    markdown_path = reports_dir / f"candidate_recall_quota_{split_name}.md"
+    json_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    markdown_path.write_text(_render_quota_markdown(payload), encoding="utf-8")
+    return json_path, markdown_path
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     from evaluation.evaluate import (
         filter_seen_target_examples,
@@ -212,10 +297,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     json_path, markdown_path = save_candidate_recall_report(
         args.split,
+        {source: recall[source] for source in SOURCES},
+        number_of_examples=len(evaluation_examples),
+        unknown_targets=int(evaluation_examples["target_item"].eq(0).sum()),
+        reports_dir=args.reports_dir,
+    )
+    quota_json_path, quota_markdown_path = save_quota_candidate_recall_report(
+        args.split,
         recall,
         number_of_examples=len(evaluation_examples),
         unknown_targets=int(evaluation_examples["target_item"].eq(0).sum()),
         reports_dir=args.reports_dir,
+        generator=generator,
     )
     for source in SOURCES:
         metrics = recall[source]
@@ -224,6 +317,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"Recall@500={metrics['500']:.6f}, Recall@1000={metrics['1000']:.6f}"
         )
     print(f"Saved {json_path} and {markdown_path}")
+    print(f"Saved {quota_json_path} and {quota_markdown_path}")
     return 0
 
 

@@ -10,15 +10,17 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if __package__ in (None, ""):
+    sys.path.insert(0, str(PROJECT_ROOT))
     sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-MODEL_NAMES = ("popularity", "markov", "item_knn", "gru", "gru4rec")
+MODEL_NAMES = ("popularity", "markov", "item_knn", "gru", "gru4rec", "candidate_gru")
 DISPLAY_NAMES = {
     "popularity": "Popularity",
     "markov": "Markov",
     "item_knn": "Item-KNN",
     "gru": "GRU4Rec",
     "gru4rec": "GRU4Rec",
+    "candidate_gru": "Candidate-aware GRU",
 }
 
 
@@ -40,6 +42,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=0.8)
     parser.add_argument("--candidate-pool-size", type=int, default=500)
     parser.add_argument("--device", default="auto")
+    parser.add_argument(
+        "--candidate-artifact-path",
+        type=Path,
+        default=Path("artifacts/candidate_gru_best.pt"),
+    )
+    parser.add_argument(
+        "--candidate-config",
+        type=Path,
+        default=Path("configs/model_candidate_gru.yaml"),
+    )
     return parser.parse_args(argv)
 
 
@@ -75,7 +87,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     args = parse_args(argv)
-    normalized_model_name = "gru4rec" if args.model == "gru" else args.model
     data_dir = _resolve_data_dir(args.config, args.data_dir)
     evaluation_examples = load_processed_examples(data_dir, args.split)
     original_evaluation_count = len(evaluation_examples)
@@ -87,6 +98,50 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "appeared in the prefix."
         )
     catalog_size = load_catalog_size(data_dir)
+
+    if args.model == "candidate_gru":
+        from evaluation.candidate_gru_evaluate import (
+            evaluate_candidate_gru_suite,
+            write_candidate_gru_diagnostics,
+        )
+        from models.train_gru import resolve_device
+        from scripts.candidate_recall import fit_candidate_generator
+        from scripts.train_candidate_gru import load_candidate_training_config
+
+        candidate_config = load_candidate_training_config(args.candidate_config)
+        raw_train_examples = load_processed_examples(data_dir, "train")
+        generator = fit_candidate_generator(
+            raw_train_examples,
+            candidate_pool_size=candidate_config.candidate_pool_size,
+            candidate_mode=candidate_config.candidate_mode,
+            quota_weights=candidate_config.quota_weights,
+        )
+        device = resolve_device(args.device)
+        json_path, markdown_path, payload = evaluate_candidate_gru_suite(
+            args.split,
+            evaluation_examples,
+            catalog_size,
+            generator,
+            current_checkpoint=args.artifact_path,
+            candidate_checkpoint=args.candidate_artifact_path,
+            config_path=args.candidate_config,
+            reports_dir=args.reports_dir,
+            device=device,
+            mmr_alpha=candidate_config.mmr_alpha,
+        )
+        diagnostics_path = write_candidate_gru_diagnostics(args.reports_dir)
+        print(f"Candidate-GRU inference device: {device}")
+        for model_name, result in payload["models"].items():
+            metrics = result["metrics"]["20"]
+            print(
+                f"{model_name}: Recall@20={metrics['recall']:.6f}, "
+                f"MRR@20={metrics['mrr']:.6f}, NDCG@20={metrics['ndcg']:.6f}, "
+                f"Coverage@20={metrics['coverage']:.6f}"
+            )
+        print(f"Saved {json_path}, {markdown_path}, and {diagnostics_path}")
+        return 0
+
+    normalized_model_name = "gru4rec" if args.model == "gru" else args.model
 
     if normalized_model_name == "gru4rec":
         from models.gru4rec import GRU4Rec

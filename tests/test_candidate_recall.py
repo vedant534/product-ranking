@@ -9,6 +9,7 @@ from scripts.candidate_recall import (
     evaluate_candidate_recall,
     fit_candidate_generator,
     save_candidate_recall_report,
+    save_quota_candidate_recall_report,
 )
 
 
@@ -78,3 +79,24 @@ def test_candidate_recall_report_uses_split_specific_paths(tmp_path) -> None:
     assert payload["fit_split"] == "train"
     assert payload["policy"]["source_fallbacks"] is False
     assert "Recall@1000" in markdown_path.read_text(encoding="utf-8")
+
+
+def test_quota_candidate_report_records_observed_test_metadata(tmp_path) -> None:
+    generator = fit_candidate_generator(_train_examples())
+    recall = {
+        source: {"100": 0.1, "500": 0.2, "1000": 0.3}
+        for source in ("item_knn", "combined", "quota_combined")
+    }
+
+    json_path, _ = save_quota_candidate_recall_report(
+        "test", recall, 10, 2, tmp_path, generator
+    )
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+
+    assert payload["report_status"] == "observed_test"
+    assert payload["candidate_mode"] == "quota_combined"
+    assert payload["resolved_quotas"]["1000"] == {
+        "item_knn": 700,
+        "markov": 200,
+        "popularity": 100,
+    }

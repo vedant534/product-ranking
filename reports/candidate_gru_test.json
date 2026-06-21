@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "base_quotas": {
+      "item_knn": 700,
+      "markov": 200,
+      "popularity": 100
+    },
+    "candidate_gru_checkpoint_sha256": "dc77bca2953fe50e4a0f388bd9203496e02235bac673d571b4787b572155db16",
+    "candidate_gru_config_sha256": "555b1501873f067b174bd759891d4150a9bd5961c8f306198bf24f282ed49f4e",
+    "candidate_mode": "quota_combined",
+    "candidate_pool_size": 1000,
+    "current_gru_checkpoint_sha256": "e10f49a9b6adc455af589f9b362471aad474b8944e7d4a101f8b09cc243bc211",
+    "latency_mode": "batched_throughput",
+    "metric_k": 20,
+    "mmr_alpha": 0.8,
+    "number_of_examples": 92892,
+    "report_status": "observed_test",
+    "resolved_quotas": {
+      "item_knn": 700,
+      "markov": 200,
+      "popularity": 100
+    },
+    "split": "test",
+    "unknown_targets": 23515
+  },
+  "models": {
+    "Candidate-aware GRU - quota_combined": {
+      "average_latency_ms": 4.912135070662699,
+      "catalog_size": 112714,
+      "latency_mode": "batched_throughput",
+      "metrics": {
+        "20": {
+          "coverage": 0.5063701048671859,
+          "hitrate": 0.18280368600094735,
+          "mrr": 0.0736708593708479,
+          "ndcg": 0.09814368129365933,
+          "recall": 0.18280368600094735,
+          "unique_recommended_items": 57075
+        }
+      },
+      "number_of_examples": 92892
+    },
+    "Candidate-aware GRU - quota_combined + MMR": {
+      "average_latency_ms": 9.158028196152499,
+      "catalog_size": 112714,
+      "latency_mode": "batched_throughput",
+      "metrics": {
+        "20": {
+          "coverage": 0.486088684635449,
+          "diversity": 0.985749855583686,
+          "hitrate": 0.1716186539206821,
+          "intra_list_similarity": 0.014250144416314019,
+          "mrr": 0.0702456276398238,
+          "ndcg": 0.0928860137191434,
+          "recall": 0.1716186539206821,
+          "unique_recommended_items": 54789
+        }
+      },
+      "number_of_examples": 92892
+    },
+    "Current GRU - quota_combined": {
+      "average_latency_ms": 4.915847942212473,
+      "catalog_size": 112714,
+      "latency_mode": "batched_throughput",
+      "metrics": {
+        "20": {
+          "coverage": 0.13641606189115815,
+          "hitrate": 0.08092193084442148,
+          "mrr": 0.030760621055637396,
+          "ndcg": 0.04181632112320104,
+          "recall": 0.08092193084442148,
+          "unique_recommended_items": 15376
+        }
+      },
+      "number_of_examples": 92892
+    }
+  },
+  "secondary_full_vocabulary_reference": {
+    "average_latency_ms": 1.697535634564704,
+    "catalog_size": 112714,
+    "latency_mode": "batched_throughput",
+    "metrics": {
+      "10": {
+        "coverage": 0.07600652980108949,
+        "diversity": 0.9826758442856868,
+        "hitrate": 0.04479395426947423,
+        "intra_list_similarity": 0.017324155714313214,
+        "mrr": 0.023417893043910263,
+        "ndcg": 0.028457461770118733,
+        "recall": 0.04479395426947423,
+        "unique_recommended_items": 8567
+      },
+      "20": {
+        "coverage": 0.10083929236829497,
+        "diversity": 0.9884424736929004,
+        "hitrate": 0.05769065150927959,
+        "intra_list_similarity": 0.011557526307099603,
+        "mrr": 0.024317864757786203,
+        "ndcg": 0.03172425758506472,
+        "recall": 0.05769065150927959,
+        "unique_recommended_items": 11366
+      },
+      "5": {
+        "coverage": 0.0575083840516706,
+        "diversity": 0.9751466492683641,
+        "hitrate": 0.03417947724238901,
+        "intra_list_similarity": 0.024853350731635828,
+        "mrr": 0.022008892046677803,
+        "ndcg": 0.025032468808206837,
+        "recall": 0.03417947724238901,
+        "unique_recommended_items": 6482
+      }
+    },
+    "number_of_examples": 92892
+  }
+}

@@ -1,0 +1,29 @@
+model:
+  name: candidate_gru
+  embedding_dim: 128
+  hidden_dim: 128
+  num_layers: 1
+  dropout: 0.1
+
+training:
+  optimizer: adam
+  learning_rate: 0.001
+  batch_size: 256
+  epochs: 20
+  max_sequence_length: 50
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 5
+  validation_max_examples: 20000
+  device: auto
+  seed: 42
+
+candidate:
+  mode: quota_combined
+  pool_size: 1000
+  hard_negatives: 256
+  quotas:
+    item_knn: 700
+    markov: 200
+    popularity: 100
+  mmr_alpha: 0.8
+  cache_dir: data/interim/candidate_gru

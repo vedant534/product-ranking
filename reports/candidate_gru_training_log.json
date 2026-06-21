@@ -1,0 +1,72 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 4.295688938860872,
+    "validation_recall_at_20": 0.1809,
+    "validation_mrr_at_20": 0.06743275719077928,
+    "validation_ndcg_at_20": 0.09244265153685273
+  },
+  {
+    "epoch": 2,
+    "train_loss": 3.25605751896094,
+    "validation_recall_at_20": 0.21335,
+    "validation_mrr_at_20": 0.08464611538336911,
+    "validation_ndcg_at_20": 0.11338523573497902
+  },
+  {
+    "epoch": 3,
+    "train_loss": 2.6353316245399805,
+    "validation_recall_at_20": 0.22405,
+    "validation_mrr_at_20": 0.09091474630525062,
+    "validation_ndcg_at_20": 0.12066831878042772
+  },
+  {
+    "epoch": 4,
+    "train_loss": 2.214686394329038,
+    "validation_recall_at_20": 0.22755,
+    "validation_mrr_at_20": 0.09068339733881467,
+    "validation_ndcg_at_20": 0.12134381014350765
+  },
+  {
+    "epoch": 5,
+    "train_loss": 1.9193191216068497,
+    "validation_recall_at_20": 0.23045,
+    "validation_mrr_at_20": 0.091002642636001,
+    "validation_ndcg_at_20": 0.12219048391405145
+  },
+  {
+    "epoch": 6,
+    "train_loss": 1.699505791629576,
+    "validation_recall_at_20": 0.23125,
+    "validation_mrr_at_20": 0.09071081956184421,
+    "validation_ndcg_at_20": 0.12217452876431743
+  },
+  {
+    "epoch": 7,
+    "train_loss": 1.528804568660624,
+    "validation_recall_at_20": 0.2314,
+    "validation_mrr_at_20": 0.09057305573769127,
+    "validation_ndcg_at_20": 0.12211773568297676
+  },
+  {
+    "epoch": 8,
+    "train_loss": 1.3906507738709433,
+    "validation_recall_at_20": 0.2307,
+    "validation_mrr_at_20": 0.08967055670099482,
+    "validation_ndcg_at_20": 0.1212465009527145
+  },
+  {
+    "epoch": 9,
+    "train_loss": 1.277786372357935,
+    "validation_recall_at_20": 0.2302,
+    "validation_mrr_at_20": 0.08857944946092706,
+    "validation_ndcg_at_20": 0.1202478915647459
+  },
+  {
+    "epoch": 10,
+    "train_loss": 1.1844498871060096,
+    "validation_recall_at_20": 0.23095,
+    "validation_mrr_at_20": 0.08816760883208556,
+    "validation_ndcg_at_20": 0.1200853479042195
+  }
+]

@@ -21,6 +21,11 @@ CANDIDATE_DISPLAY_NAMES = {
     "item_knn": "Item-KNN",
     "combined": "Combined",
 }
+CANDIDATE_GRU_DISPLAY_NAMES = {
+    "Current GRU - quota_combined": "Current GRU on quota pool",
+    "Candidate-aware GRU - quota_combined": "Candidate-aware GRU",
+    "Candidate-aware GRU - quota_combined + MMR": "Candidate-aware GRU + MMR",
+}
 
 
 def _read_payload(path: Path) -> Optional[dict[str, object]]:
@@ -128,3 +133,105 @@ def load_candidate_recall_summary(
             }
         )
     return pd.DataFrame(rows)
+
+
+def load_candidate_gru_summary(
+    path: Path,
+    expected_split: str,
+) -> Optional[pd.DataFrame]:
+    """Load the saved controlled CandidateGRU experiment without model inference."""
+    payload = _read_payload(path)
+    if payload is None:
+        return None
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict) or metadata.get("split") != expected_split:
+        raise ValueError(
+            f"Candidate-GRU report '{path}' is not for split '{expected_split}'"
+        )
+    expected_status = "validation" if expected_split == "validation" else "observed_test"
+    if metadata.get("report_status") != expected_status:
+        raise ValueError(
+            f"Candidate-GRU report '{path}' must have status '{expected_status}'"
+        )
+    models = payload.get("models")
+    if not isinstance(models, dict):
+        raise ValueError(f"Candidate-GRU report '{path}' has no model results")
+
+    rows = []
+    for model_name, display_name in CANDIDATE_GRU_DISPLAY_NAMES.items():
+        result = models.get(model_name)
+        if not isinstance(result, dict):
+            raise ValueError(f"Candidate-GRU report '{path}' is missing '{model_name}'")
+        metrics = result.get("metrics", {}).get("20")
+        if not isinstance(metrics, dict):
+            raise ValueError(
+                f"Candidate-GRU report '{path}' has no K=20 metrics for '{model_name}'"
+            )
+        required_metrics = ("recall", "mrr", "ndcg", "coverage")
+        if any(metrics.get(metric) is None for metric in required_metrics):
+            raise ValueError(
+                f"Candidate-GRU report '{path}' has incomplete metrics for '{model_name}'"
+            )
+        rows.append(
+            {
+                "model": display_name,
+                "Recall@20": float(metrics["recall"]),
+                "MRR@20": float(metrics["mrr"]),
+                "NDCG@20": float(metrics["ndcg"]),
+                "Coverage@20": float(metrics["coverage"]),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def load_quota_candidate_recall_summary(
+    path: Path,
+    expected_split: str,
+) -> Optional[pd.DataFrame]:
+    """Load old-versus-quota candidate recall from a saved report."""
+    payload = _read_payload(path)
+    if payload is None:
+        return None
+    if payload.get("split") != expected_split or payload.get("candidate_mode") != "quota_combined":
+        raise ValueError(
+            f"Quota candidate report '{path}' is not quota_combined for '{expected_split}'"
+        )
+    cutoffs = payload.get("cutoffs")
+    recall = payload.get("recall")
+    if cutoffs != [100, 500, 1000] or not isinstance(recall, dict):
+        raise ValueError(f"Quota candidate report '{path}' has an invalid schema")
+    old_combined = recall.get("combined")
+    quota_combined = recall.get("quota_combined")
+    if not isinstance(old_combined, dict) or not isinstance(quota_combined, dict):
+        raise ValueError(
+            f"Quota candidate report '{path}' must contain combined and quota_combined"
+        )
+
+    rows = []
+    for cutoff in cutoffs:
+        cutoff_key = str(cutoff)
+        old_value = old_combined.get(cutoff_key)
+        quota_value = quota_combined.get(cutoff_key)
+        if old_value is None or quota_value is None:
+            raise ValueError(
+                f"Quota candidate report '{path}' is missing Recall@{cutoff}"
+            )
+        rows.append(
+            {
+                "K": cutoff,
+                "quota_combined": float(quota_value),
+                "old combined": float(old_value),
+                "improvement": float(quota_value) - float(old_value),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def load_markdown_report(path: Path) -> Optional[str]:
+    """Load a non-empty saved Markdown report without executing project code."""
+    if not path.is_file():
+        return None
+    content = path.read_text(encoding="utf-8").strip()
+    if not content:
+        raise ValueError(f"Markdown report '{path}' is empty")
+    return content
